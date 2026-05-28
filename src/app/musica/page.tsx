@@ -1061,8 +1061,8 @@ export default function MusicaPage() {
                     onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
                     onGuardarMp3={c.url_local ? () => guardarEnDispositivo(c.url_local!, c.titulo) : undefined}
-                    guardandoMp3={descargaEst?.url === c.url_local}
-                    progresoMp3={descargaEst?.url === c.url_local ? descargaEst.progreso : 0}
+                    guardandoMp3={!!descargaEst && descargaEst.url === c.url_local}
+                    progresoMp3={descargaEst && descargaEst.url === c.url_local ? descargaEst.progreso : 0}
                   />
                 );
               })}
@@ -1096,8 +1096,8 @@ export default function MusicaPage() {
                     onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
                     onGuardarMp3={c.url_local ? () => guardarEnDispositivo(c.url_local!, c.titulo) : undefined}
-                    guardandoMp3={descargaEst?.url === c.url_local}
-                    progresoMp3={descargaEst?.url === c.url_local ? descargaEst.progreso : 0}
+                    guardandoMp3={!!descargaEst && descargaEst.url === c.url_local}
+                    progresoMp3={descargaEst && descargaEst.url === c.url_local ? descargaEst.progreso : 0}
                   />
                 );
               })}
@@ -1112,8 +1112,8 @@ export default function MusicaPage() {
           info={miniPlayer}
           onClose={() => setMiniPlayer(null)}
           onGuardarMp3={miniPlayer.localUrl ? () => guardarEnDispositivo(miniPlayer.localUrl!, miniPlayer.titulo) : undefined}
-          guardandoMp3={descargaEst?.url === miniPlayer.localUrl}
-          progresoMp3={descargaEst?.url === miniPlayer.localUrl ? descargaEst.progreso : 0}
+          guardandoMp3={!!descargaEst && descargaEst.url === miniPlayer.localUrl}
+          progresoMp3={descargaEst && descargaEst.url === miniPlayer.localUrl ? descargaEst.progreso : 0}
         />
       )}
 
