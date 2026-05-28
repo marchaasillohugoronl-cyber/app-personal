@@ -24,12 +24,19 @@ export async function POST(req: NextRequest) {
   const [existe] = await sql`SELECT id FROM canciones WHERE busqueda = ${body.busqueda.trim()} LIMIT 1`;
   if (existe) return NextResponse.json({ error: "Ya existe en la biblioteca", id: existe.id }, { status: 409 });
 
+  const urlYoutube   = body.url_youtube?.trim()   ?? null;
+  const duracionSeg  = body.duracion_seg            ?? null;
+  const accion       = body.accion                  ?? null;
+
   const [row] = await sql`
-    INSERT INTO canciones (busqueda, titulo, artista)
+    INSERT INTO canciones (busqueda, titulo, artista, url_youtube, duracion_seg, accion)
     VALUES (
       ${body.busqueda.trim()},
-      ${body.titulo?.trim() || body.busqueda.trim()},
-      ${body.artista?.trim() || "Desconocido"}
+      ${body.titulo?.trim()  || body.busqueda.trim()},
+      ${body.artista?.trim() || "Desconocido"},
+      ${urlYoutube},
+      ${duracionSeg},
+      ${accion}
     )
     RETURNING *
   `;
