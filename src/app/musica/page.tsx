@@ -123,6 +123,58 @@ function LaptopIcon() {
   );
 }
 
+function SaveDeviceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+      <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14zm-1-6h-3V8h-2v5H8l4 4 4-4z"/>
+    </svg>
+  );
+}
+
+// ── Descarga de MP3 al dispositivo ─────────────────────────────────────────────
+
+interface DescargaEstado {
+  url: string;
+  progreso: number;   // 0-100, 100 = completo
+  error: boolean;
+}
+
+async function descargarMp3(
+  urlLocal: string,
+  titulo: string,
+  onProgress: (p: number) => void
+): Promise<void> {
+  const resp = await fetch(urlLocal);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+  const total = parseInt(resp.headers.get("content-length") ?? "0");
+  const reader = resp.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      loaded += value.length;
+      onProgress(total > 0 ? Math.round((loaded / total) * 100) : 50);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const blob = new Blob(chunks as any[], { type: "audio/mpeg" });
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = titulo.replace(/[/\\:*?"<>|]/g, "_") + ".mp3";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+  onProgress(100);
+}
+
 // ── Equalizer ─────────────────────────────────────────────────────────────────
 
 function Equalizer() {
@@ -249,7 +301,19 @@ function ConfirmarEliminar({
 
 // ── Mini Player (reproducción en el teléfono) ─────────────────────────────────
 
-function MiniPlayer({ info, onClose }: { info: MiniPlayerInfo; onClose: () => void }) {
+function MiniPlayer({
+  info,
+  onClose,
+  onGuardarMp3,
+  guardandoMp3 = false,
+  progresoMp3 = 0,
+}: {
+  info: MiniPlayerInfo;
+  onClose: () => void;
+  onGuardarMp3?: () => void;
+  guardandoMp3?: boolean;
+  progresoMp3?: number;
+}) {
   const [modo, setModo] = useState<"local" | "youtube">(
     info.localUrl ? "local" : "youtube"
   );
@@ -266,14 +330,34 @@ function MiniPlayer({ info, onClose }: { info: MiniPlayerInfo; onClose: () => vo
               <p className="text-gray-500 text-xs truncate">{info.artista}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
             {/* Toggle local ↔ YouTube */}
             {info.localUrl && info.videoId && (
               <button
                 onClick={() => setModo(modo === "local" ? "youtube" : "local")}
                 className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-2 py-1 transition-colors"
               >
-                {modo === "local" ? "▶ YouTube" : "💾 Local"}
+                {modo === "local" ? "▶ YT" : "💾 Local"}
+              </button>
+            )}
+            {/* Guardar MP3 en este dispositivo */}
+            {onGuardarMp3 && info.localUrl && (
+              <button
+                onClick={onGuardarMp3}
+                disabled={guardandoMp3}
+                title="Guardar MP3 en este dispositivo"
+                className="relative h-7 min-w-[2rem] rounded-lg bg-gray-800 hover:bg-indigo-800 border border-gray-700 hover:border-indigo-600 flex items-center justify-center text-gray-400 hover:text-indigo-300 disabled:opacity-60 px-1.5 overflow-hidden transition-all"
+              >
+                <span
+                  className="absolute left-0 top-0 bottom-0 bg-indigo-700/40 transition-all"
+                  style={{ width: guardandoMp3 ? `${progresoMp3}%` : "0%" }}
+                />
+                <span className="relative">
+                  {guardandoMp3
+                    ? <span className="text-[9px] font-bold text-indigo-300">{progresoMp3 < 100 ? `${progresoMp3}%` : "✓"}</span>
+                    : <SaveDeviceIcon />
+                  }
+                </span>
               </button>
             )}
             <button
@@ -422,6 +506,9 @@ function CancionCard({
   onStop,
   onPlayPhone,
   onDelete,
+  onGuardarMp3,
+  guardandoMp3 = false,
+  progresoMp3 = 0,
 }: {
   cancion: Cancion;
   isPlaying: boolean;
@@ -429,6 +516,9 @@ function CancionCard({
   onStop: () => void;
   onPlayPhone: () => void;
   onDelete: () => void;
+  onGuardarMp3?: () => void;
+  guardandoMp3?: boolean;
+  progresoMp3?: number;
 }) {
   const desde = formatDistanceToNow(parseISO(cancion.solicitada_en), { locale: es, addSuffix: true });
   const vidId = cancion.url_youtube ? extraerVideoId(cancion.url_youtube) : null;
@@ -497,6 +587,31 @@ function CancionCard({
               <PlayIcon />
             </button>
           )
+        )}
+
+        {/* Guardar MP3 en este dispositivo */}
+        {onGuardarMp3 && (
+          <button
+            onClick={onGuardarMp3}
+            disabled={guardandoMp3}
+            title="Guardar MP3 en este dispositivo"
+            className="w-8 h-8 rounded-full bg-gray-800 hover:bg-indigo-800 border border-gray-700/40 hover:border-indigo-600/60 flex items-center justify-center text-gray-500 hover:text-indigo-300 disabled:opacity-60 transition-all opacity-0 group-hover:opacity-100 relative overflow-hidden"
+          >
+            {guardandoMp3 ? (
+              <>
+                {/* barra de progreso de fondo */}
+                <span
+                  className="absolute left-0 top-0 bottom-0 bg-indigo-700/40 transition-all"
+                  style={{ width: `${progresoMp3}%` }}
+                />
+                <span className="relative text-[9px] font-bold text-indigo-300">
+                  {progresoMp3 < 100 ? `${progresoMp3}%` : "✓"}
+                </span>
+              </>
+            ) : (
+              <SaveDeviceIcon />
+            )}
+          </button>
         )}
 
         {/* Eliminar */}
@@ -639,6 +754,9 @@ export default function MusicaPage() {
   // Confirmación de eliminación
   const [confirmando, setConfirmando] = useState<Cancion | null>(null);
 
+  // Descarga de MP3 al dispositivo
+  const [descargaEst, setDescargaEst] = useState<DescargaEstado | null>(null);
+
   useEffect(() => {
     const k = getApiKey();
     setApiKey(k || null);
@@ -724,6 +842,20 @@ export default function MusicaPage() {
 
   function playPhone(info: { videoId: string | null; localUrl: string | null; titulo: string; artista: string }) {
     setMiniPlayer(info);
+  }
+
+  async function guardarEnDispositivo(urlLocal: string, titulo: string) {
+    if (descargaEst) return;
+    setDescargaEst({ url: urlLocal, progreso: 0, error: false });
+    try {
+      await descargarMp3(urlLocal, titulo, (p) =>
+        setDescargaEst((prev) => prev ? { ...prev, progreso: p } : null)
+      );
+    } catch {
+      setDescargaEst((prev) => prev ? { ...prev, error: true } : null);
+    } finally {
+      setTimeout(() => setDescargaEst(null), 3000);
+    }
   }
 
   // ── Acciones de búsqueda ───────────────────────────────────────────────────
@@ -928,6 +1060,9 @@ export default function MusicaPage() {
                     onStop={stop}
                     onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
+                    onGuardarMp3={c.url_local ? () => guardarEnDispositivo(c.url_local!, c.titulo) : undefined}
+                    guardandoMp3={descargaEst?.url === c.url_local}
+                    progresoMp3={descargaEst?.url === c.url_local ? descargaEst.progreso : 0}
                   />
                 );
               })}
@@ -960,6 +1095,9 @@ export default function MusicaPage() {
                     onStop={() => {}}
                     onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
+                    onGuardarMp3={c.url_local ? () => guardarEnDispositivo(c.url_local!, c.titulo) : undefined}
+                    guardandoMp3={descargaEst?.url === c.url_local}
+                    progresoMp3={descargaEst?.url === c.url_local ? descargaEst.progreso : 0}
                   />
                 );
               })}
@@ -970,7 +1108,13 @@ export default function MusicaPage() {
 
       {/* Mini player (teléfono) */}
       {miniPlayer && (
-        <MiniPlayer info={miniPlayer} onClose={() => setMiniPlayer(null)} />
+        <MiniPlayer
+          info={miniPlayer}
+          onClose={() => setMiniPlayer(null)}
+          onGuardarMp3={miniPlayer.localUrl ? () => guardarEnDispositivo(miniPlayer.localUrl!, miniPlayer.titulo) : undefined}
+          guardandoMp3={descargaEst?.url === miniPlayer.localUrl}
+          progresoMp3={descargaEst?.url === miniPlayer.localUrl ? descargaEst.progreso : 0}
+        />
       )}
 
       {/* Now Playing (laptop) — solo si no hay mini player activo */}
