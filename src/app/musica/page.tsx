@@ -19,7 +19,8 @@ interface Resultado {
 }
 
 interface MiniPlayerInfo {
-  videoId: string;
+  videoId: string | null;
+  localUrl: string | null;
   titulo: string;
   artista: string;
 }
@@ -246,9 +247,13 @@ function ConfirmarEliminar({
   );
 }
 
-// ── Mini Player (YouTube en el teléfono) ──────────────────────────────────────
+// ── Mini Player (reproducción en el teléfono) ─────────────────────────────────
 
 function MiniPlayer({ info, onClose }: { info: MiniPlayerInfo; onClose: () => void }) {
+  const [modo, setModo] = useState<"local" | "youtube">(
+    info.localUrl ? "local" : "youtube"
+  );
+
   return (
     <div className="fixed bottom-16 left-0 right-0 z-25 max-w-lg mx-auto px-3 pb-2">
       <div className="bg-gray-900 border border-gray-700/50 rounded-2xl overflow-hidden shadow-2xl shadow-black/60">
@@ -261,22 +266,61 @@ function MiniPlayer({ info, onClose }: { info: MiniPlayerInfo; onClose: () => vo
               <p className="text-gray-500 text-xs truncate">{info.artista}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white text-lg leading-none flex-shrink-0 ml-2 transition-colors"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            {/* Toggle local ↔ YouTube */}
+            {info.localUrl && info.videoId && (
+              <button
+                onClick={() => setModo(modo === "local" ? "youtube" : "local")}
+                className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-2 py-1 transition-colors"
+              >
+                {modo === "local" ? "▶ YouTube" : "💾 Local"}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white text-lg leading-none transition-colors"
+            >
+              ×
+            </button>
+          </div>
         </div>
-        {/* Video embed 16:9 */}
-        <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-          <iframe
-            src={`https://www.youtube.com/embed/${info.videoId}?autoplay=1&rel=0`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="absolute inset-0 w-full h-full"
-          />
-        </div>
+
+        {/* Reproductor local: <audio> HTML5 — sin anuncios, funciona en WiFi */}
+        {modo === "local" && info.localUrl && (
+          <div className="px-4 py-4 space-y-2">
+            <audio
+              key={info.localUrl}
+              src={info.localUrl}
+              controls
+              autoPlay
+              className="w-full h-10"
+              onError={() => info.videoId && setModo("youtube")}
+            />
+            <p className="text-xs text-gray-600 text-center flex items-center justify-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+              Streaming local · Funciona sin internet (misma red WiFi)
+            </p>
+          </div>
+        )}
+
+        {/* YouTube embed como alternativa */}
+        {modo === "youtube" && info.videoId && (
+          <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${info.videoId}?autoplay=1&rel=0`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+        )}
+
+        {/* Sin fuente disponible */}
+        {!info.localUrl && !info.videoId && (
+          <div className="px-4 py-6 text-center text-gray-600 text-sm">
+            No hay fuente de audio disponible
+          </div>
+        )}
       </div>
     </div>
   );
@@ -678,8 +722,8 @@ export default function MusicaPage() {
     }
   }
 
-  function playPhone(videoId: string, titulo: string, artista: string) {
-    setMiniPlayer({ videoId, titulo, artista });
+  function playPhone(info: { videoId: string | null; localUrl: string | null; titulo: string; artista: string }) {
+    setMiniPlayer(info);
   }
 
   // ── Acciones de búsqueda ───────────────────────────────────────────────────
@@ -826,7 +870,7 @@ export default function MusicaPage() {
                       cargando={procesando === r.id}
                       onPlayLaptop={() => enviarResultado(r, "play")}
                       onDescargar={() => enviarResultado(r, null)}
-                      onPlayPhone={() => vid && playPhone(vid, r.titulo, r.artista)}
+                      onPlayPhone={() => playPhone({ videoId: vid, localUrl: null, titulo: r.titulo, artista: r.artista })}
                     />
                   );
                 })}
@@ -882,7 +926,7 @@ export default function MusicaPage() {
                     isPlaying={jugando?.id === c.id}
                     onPlayLaptop={() => playLaptop(c)}
                     onStop={stop}
-                    onPlayPhone={() => vid && playPhone(vid, c.titulo, c.artista)}
+                    onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
                   />
                 );
@@ -914,7 +958,7 @@ export default function MusicaPage() {
                     isPlaying={false}
                     onPlayLaptop={() => {}}
                     onStop={() => {}}
-                    onPlayPhone={() => vid && playPhone(vid, c.titulo, c.artista)}
+                    onPlayPhone={() => playPhone({ videoId: vid, localUrl: c.url_local ?? null, titulo: c.titulo, artista: c.artista })}
                     onDelete={() => setConfirmando(c)}
                   />
                 );

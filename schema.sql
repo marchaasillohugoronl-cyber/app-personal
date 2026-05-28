@@ -25,8 +25,13 @@ CREATE TABLE IF NOT EXISTS canciones (
   solicitada_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   descargada_en TIMESTAMPTZ,
   -- Comando enviado desde el teléfono al laptop ('play','stop','delete',NULL)
-  accion        TEXT        CHECK (accion IN ('play','stop','delete'))
+  accion        TEXT        CHECK (accion IN ('play','stop','delete')),
+  -- URL del servidor local del laptop (streaming en misma red WiFi)
+  url_local     TEXT
 );
+
+-- Migración: ejecutar si la tabla ya existe
+-- ALTER TABLE canciones ADD COLUMN IF NOT EXISTS url_local TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_canciones_descargada ON canciones (descargada);
 CREATE INDEX IF NOT EXISTS idx_canciones_accion     ON canciones (accion)    WHERE accion IS NOT NULL;

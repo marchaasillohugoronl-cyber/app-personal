@@ -21,6 +21,7 @@ export async function PATCH(
       titulo        = COALESCE(${body.titulo       ?? null}, titulo),
       artista       = COALESCE(${body.artista      ?? null}, artista),
       url_youtube   = COALESCE(${body.url_youtube  ?? null}, url_youtube),
+      url_local     = COALESCE(${body.url_local    ?? null}, url_local),
       duracion_seg  = COALESCE(${body.duracion_seg ?? null}, duracion_seg),
       descargada    = COALESCE(${body.descargada   ?? null}, descargada),
       descargada_en = CASE WHEN ${body.descargada === true} THEN NOW() ELSE descargada_en END,
