@@ -33,6 +33,8 @@ export async function PATCH(
 }
 
 // DELETE /api/musica/[id]
+// Con ?soft=1 solo marca accion='delete' (señal para que el laptop borre el archivo).
+// Sin parámetro (por defecto) elimina el registro de la BD.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -41,7 +43,11 @@ export async function DELETE(
   const id = parseInt(params.id);
   if (isNaN(id)) return NextResponse.json({ error: "ID inválido" }, { status: 400 });
 
-  // Marcar como delete para que el laptop limpie el archivo local
-  await sql`UPDATE canciones SET accion = 'delete' WHERE id = ${id}`;
+  const soft = req.nextUrl.searchParams.get("soft") === "1";
+  if (soft) {
+    await sql`UPDATE canciones SET accion = 'delete' WHERE id = ${id}`;
+  } else {
+    await sql`DELETE FROM canciones WHERE id = ${id}`;
+  }
   return NextResponse.json({ ok: true });
 }
