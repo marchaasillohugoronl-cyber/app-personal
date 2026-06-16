@@ -655,40 +655,21 @@ function NowPlayingBar({ cancion, onStop }: { cancion: Cancion; onStop: () => vo
 // ── Formulario de búsqueda ────────────────────────────────────────────────────
 
 function FormBuscar({
-  onResultados,
+  query,
+  setQuery,
+  onBuscar,
   buscando,
-  setBuscando,
+  error,
 }: {
-  onResultados: (r: Resultado[]) => void;
+  query: string;
+  setQuery: (q: string) => void;
+  onBuscar: (q: string) => void;
   buscando: boolean;
-  setBuscando: (v: boolean) => void;
+  error: string;
 }) {
-  const [query, setQuery] = useState("");
-  const [error, setError] = useState("");
-
-  async function buscar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim() || buscando) return;
-    setBuscando(true);
-    setError("");
-    onResultados([]);
-    try {
-      const r = await fetch(
-        `/api/musica/buscar?q=${encodeURIComponent(query.trim())}`,
-        { headers: { "x-api-key": getApiKey() } }
-      );
-      if (!r.ok) throw new Error();
-      onResultados(await r.json());
-    } catch {
-      setError("No se pudo buscar. Comprueba tu conexión.");
-    } finally {
-      setBuscando(false);
-    }
-  }
-
   return (
     <div className="space-y-2">
-      <form onSubmit={buscar}>
+      <form onSubmit={(e) => { e.preventDefault(); onBuscar(query); }}>
         <div className="flex items-center gap-2.5 bg-gray-900 border border-gray-700/60 rounded-2xl px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-red-500/40 focus-within:border-red-800/40 transition-all">
           <YTIcon />
           <input
@@ -736,8 +717,10 @@ export default function MusicaPage() {
   const [tab, setTab]                 = useState<Tab>("buscar");
 
   // Búsqueda
+  const [query, setQuery]             = useState("");
   const [resultados, setResultados]   = useState<Resultado[]>([]);
   const [buscando, setBuscando]       = useState(false);
+  const [errorBusqueda, setErrorBusqueda] = useState("");
   const [msgCards, setMsgCards]       = useState<Record<string, { text: string; ok: boolean }>>({});
   const [procesando, setProcesando]   = useState<string | null>(null);
 
@@ -796,6 +779,30 @@ export default function MusicaPage() {
     localStorage.setItem(STORAGE_KEY, k);
     setApiKey(k);
     cargar(k);
+  }
+
+  // ── Búsqueda ───────────────────────────────────────────────────────────────
+
+  async function ejecutarBusqueda(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed || buscando) return;
+    setQuery(trimmed);
+    setBuscando(true);
+    setErrorBusqueda("");
+    setResultados([]);
+    setTab("buscar");
+    try {
+      const r = await fetch(
+        `/api/musica/buscar?q=${encodeURIComponent(trimmed)}`,
+        { headers: { "x-api-key": getApiKey() } }
+      );
+      if (!r.ok) throw new Error();
+      setResultados(await r.json());
+    } catch {
+      setErrorBusqueda("No se pudo buscar. Comprueba tu conexión.");
+    } finally {
+      setBuscando(false);
+    }
   }
 
   // ── Acciones biblioteca ────────────────────────────────────────────────────
@@ -977,9 +984,11 @@ export default function MusicaPage() {
         {tab === "buscar" && (
           <div className="space-y-4">
             <FormBuscar
-              onResultados={setResultados}
+              query={query}
+              setQuery={setQuery}
+              onBuscar={ejecutarBusqueda}
               buscando={buscando}
-              setBuscando={setBuscando}
+              error={errorBusqueda}
             />
 
             {buscando ? (
@@ -1020,7 +1029,7 @@ export default function MusicaPage() {
                   {["Bad Bunny", "Coldplay", "Dua Lipa", "Eminem"].map((s) => (
                     <button
                       key={s}
-                      onClick={() => document.querySelector("input")?.focus()}
+                      onClick={() => ejecutarBusqueda(s)}
                       className="text-xs text-gray-500 bg-gray-900 border border-gray-800 rounded-xl py-2 px-3 hover:text-white hover:border-gray-700 transition-colors"
                     >
                       {s}
